@@ -44,3 +44,10 @@ venv/
 env/
 .venv/
 .env/
+
+# Old files to ignore
+.gitignore.txt
+load_full_dataset.py
+predict_image.py
+predict_my_pic.py
+train_net.py
