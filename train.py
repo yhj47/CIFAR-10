@@ -14,9 +14,9 @@ from models import SimpleCNN, ResNet18
 
 def get_args():
     parser = argparse.ArgumentParser(description='Train CNN/ResNet18 on CIFAR-10')
-    parser.add_argument('--model', type=str, default='simple_cnn',
+    parser.add_argument('--model', type=str, default='resnet18',
                         choices=['simple_cnn', 'resnet18'],
-                        help='model architecture (default: simple_cnn)')
+                        help='model architecture (default: resnet18)')
     parser.add_argument('--epochs', type=int, default=20,
                         help='number of epochs to train (default: 20)')
     parser.add_argument('--batch_size', type=int, default=128,
