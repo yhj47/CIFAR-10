@@ -164,12 +164,12 @@ CIFAR-10 数据集包含 60,000 张 32x32 彩色图片，分为 10 个类别，�
 
 训练 SimpleCNN：
 ```bash
-python train.py --model simple_cnn --epochs 20 --batch_size 128 --lr 0.01
+python train._previous.py --model simple_cnn --epochs 20 --batch_size 128 --lr 0.01
 ```
 
 训练 ResNet-18：
 ```bash
-python train.py --model resnet18 --epochs 30 --batch_size 128 --lr 0.01
+python train._previous.py --model resnet18 --epochs 30 --batch_size 128 --lr 0.01
 ```
 
 训练参数说明：

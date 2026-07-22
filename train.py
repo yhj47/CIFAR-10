@@ -1,195 +1,75 @@
-import os
 import argparse
+import os                                      #os能够对项目文件夹进行创建、储存等操作
+from calendar import EPOCH
+
 import torch
 import torch.nn as nn
-import torch.optim as optim
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
+import torch.optim as optim                    #调用torch的优化器
+from torch.utils.data import DataLoader        #DataLoader负责把数据打包传送给神经网络
+from torchvision import datasets,transforms    #dataset负责去找项目里有没有dataset，如果没有的话，将联网下载
+                                               #transforms是负责给照片进行旋转、裁剪等操作的工具包
 from torch.utils.tensorboard import SummaryWriter
-import time
-
-from models import SimpleCNN, ResNet18
+from models import SimpleCNN
 
 
-def get_args():
-    parser = argparse.ArgumentParser(description='Train CNN/ResNet18 on CIFAR-10')
-    parser.add_argument('--model', type=str, default='resnet18',
-                        choices=['simple_cnn', 'resnet18'],
-                        help='model architecture (default: resnet18)')
-    parser.add_argument('--epochs', type=int, default=20,
-                        help='number of epochs to train (default: 20)')
-    parser.add_argument('--batch_size', type=int, default=128,
-                        help='input batch size (default: 128)')
-    parser.add_argument('--lr', type=float, default=0.01,
-                        help='learning rate (default: 0.01)')
-    parser.add_argument('--momentum', type=float, default=0.9,
-                        help='SGD momentum (default: 0.9)')
-    parser.add_argument('--weight_decay', type=float, default=5e-4,
-                        help='weight decay (default: 5e-4)')
-    parser.add_argument('--data_root', type=str, default=r'E:\CIFAR-10\dataset',
-                        help='dataset root path')
-    parser.add_argument('--save_dir', type=str, default='checkpoints',
-                        help='directory to save model checkpoints')
-    parser.add_argument('--log_dir', type=str, default='runs',
-                        help='directory for TensorBoard logs')
-    parser.add_argument('--num_workers', type=int, default=0,
-                        help='number of data loading workers')
-    return parser.parse_args()
+#超参数配置
+device = torch.device('cuda'if torch.cuda.is_available() else 'cpu')
+print(f'训练使用设备：{device}')                  # f-string这里固定语法，后有{}要进行计算替代时候必须用f
+
+batch_size = 64
+learning_rate = 1e-3                           #学习率提前设定？
+epochs = 15
+patience = 3                                   #防止过拟合，可以实现early stop
+lr_factor = 0.5                                #衰减因子，当触发降学习率时，将LR*衰减因子
+lr_patience = 3                                #耐心值，当3个循环验证集的精度没有提升时，触发学习率下降
 
 
-def get_data_loaders(data_root, batch_size, num_workers):
-    train_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomCrop(32, padding=4),
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-    ])
+#-----------创建所需文件夹--------------
+os.makedirs('runs', exist_ok = True)
+os.makedirs('results', exist_ok = True)
 
-    test_transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
-    ])
+writer = SummaryWriter(log_dir='./runs')       #调用这个SuammaryWriter工具来记录训练日志
+Best_Weight_Path = os.path.join('runs','best_model.pth')
+                                               #把最佳权重参数记录在runs里面，文件名为“best_model.pth”
+Latest_Weight_Path = os.path.join('runs','latest_checkpoint.pth')
+                                               #把最近一次训练权重记录在runs里面，文件名为"latest_checkpoint.pth"
+                                               #防止训练丢失，否则需要从头训练
+#--------------数据预处理----------------------------------------------------------------------
+#=====================transform数据增强========================================================
+train_transform = transforms.Compose([
+    transforms.RandomCrop(32,padding=4),  #先把照片四周补上4圈0，然后随机裁剪出一张32*32大小
+    transforms.RandomHorizontalFlip(),         #把照片随机水平翻转
+    transforms.ToTensor(),                     #把PIL照片转化为tensor格式
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+])
+val_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
+])
 
-    train_dataset = torchvision.datasets.CIFAR10(
-        root=data_root, train=True, download=False, transform=train_transform)
-    test_dataset = torchvision.datasets.CIFAR10(
-        root=data_root, train=False, download=False, transform=test_transform)
+train_set = datasets.CIFAR10(root='./dataset', train=True, download=True, transform=train_transform)
+                                               #去项目文件夹里找CIFAR10数据集
+val_set   = datasets.CIFAR10(root='./dataset', train=False,download=True, transform=val_transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                              shuffle=True, num_workers=num_workers)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=num_workers)
-
-    return train_loader, test_loader
-
-
-def get_model(model_name, num_classes=10):
-    if model_name == 'simple_cnn':
-        return SimpleCNN(num_classes=num_classes)
-    elif model_name == 'resnet18':
-        return ResNet18(num_classes=num_classes)
-    else:
-        raise ValueError(f'Unknown model: {model_name}')
-
-
-def train_one_epoch(model, train_loader, criterion, optimizer, device, epoch):
-    model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
-
-    for batch_idx, (inputs, labels) in enumerate(train_loader):
-        inputs, labels = inputs.to(device), labels.to(device)
-
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-
-        running_loss += loss.item()
-        _, predicted = outputs.max(1)
-        total += labels.size(0)
-        correct += predicted.eq(labels).sum().item()
-
-    train_loss = running_loss / len(train_loader)
-    train_acc = 100. * correct / total
-    return train_loss, train_acc
+train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=0)
+val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=0)
+                                               #用DataLoader加载训练数据集和测试数据集，一捆的数目已经确定好
+                                               #shuffle指是否打乱顺序
+                                               #num_worker指的是是否需要在主线开几个支线来提前加载照片，用于照片尺寸过大
+#--------------------------模型、损失、学习率、优化的调度--------------------------------------------------------------
+model = SimpleCNN(num_classes=10).to(device)
+criterion = nn.CrossEntropyLoss()              #nn.CrossEntropyLoss是Pytorch.nn内置的一个损失函数器，专门用于多分类任务
+optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode = 'min', factor=lr_factor, patience=lr_patience)
+                                               #最后一个是一个监督者，具体没看懂
+#------------------------训练参数-----------------------------------------------------------------------------------
+best_acc = 0.0                                 #最佳准确率记录器
+early_stop_counter = 0                         #早停计数器
 
 
-def evaluate(model, test_loader, criterion, device):
-    model.eval()
-    test_loss = 0.0
-    correct = 0
-    total = 0
+#-----------------------训练循环-----------------------
 
-    with torch.no_grad():
-        for inputs, labels in test_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
-            loss = criterion(outputs, labels)
-
-            test_loss += loss.item()
-            _, predicted = outputs.max(1)
-            total += labels.size(0)
-            correct += predicted.eq(labels).sum().item()
-
-    test_loss = test_loss / len(test_loader)
-    test_acc = 100. * correct / total
-    return test_loss, test_acc
-
-
-def main():
-    args = get_args()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
-
-    os.makedirs(args.save_dir, exist_ok=True)
-    log_dir = os.path.join(args.log_dir, f'{args.model}_{time.strftime("%Y%m%d_%H%M%S")}')
-    writer = SummaryWriter(log_dir)
-
-    train_loader, test_loader = get_data_loaders(
-        args.data_root, args.batch_size, args.num_workers)
-    print(f'Training samples: {len(train_loader.dataset)}')
-    print(f'Test samples: {len(test_loader.dataset)}')
-
-    model = get_model(args.model).to(device)
-    print(f'Model: {args.model}')
-    print(f'Parameters: {sum(p.numel() for p in model.parameters()):,}')
-
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=args.lr,
-                          momentum=args.momentum, weight_decay=args.weight_decay)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
-
-    best_acc = 0.0
-    start_time = time.time()
-
-    for epoch in range(args.epochs):
-        epoch_start = time.time()
-
-        train_loss, train_acc = train_one_epoch(
-            model, train_loader, criterion, optimizer, device, epoch)
-        test_loss, test_acc = evaluate(model, test_loader, criterion, device)
-
-        scheduler.step()
-
-        writer.add_scalar('Loss/Train', train_loss, epoch)
-        writer.add_scalar('Loss/Test', test_loss, epoch)
-        writer.add_scalar('Accuracy/Train', train_acc, epoch)
-        writer.add_scalar('Accuracy/Test', test_acc, epoch)
-        writer.add_scalar('Learning_Rate', optimizer.param_groups[0]['lr'], epoch)
-
-        epoch_time = time.time() - epoch_start
-        print(f'Epoch [{epoch+1}/{args.epochs}] '
-              f'Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}% | '
-              f'Test Loss: {test_loss:.4f} | Test Acc: {test_acc:.2f}% | '
-              f'Time: {epoch_time:.1f}s')
-
-        if test_acc > best_acc:
-            best_acc = test_acc
-            save_path = os.path.join(args.save_dir, f'{args.model}_best.pth')
-            torch.save({
-                'epoch': epoch + 1,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'best_acc': best_acc,
-            }, save_path)
-            print(f'  -> Best model saved with acc: {best_acc:.2f}%')
-
-    total_time = time.time() - start_time
-    print(f'\nTraining complete! Best test accuracy: {best_acc:.2f}%')
-    print(f'Total training time: {total_time/60:.1f} minutes')
-
-    final_path = os.path.join(args.save_dir, f'{args.model}_final.pth')
-    torch.save(model.state_dict(), final_path)
-    print(f'Final model saved to: {final_path}')
-
-    writer.close()
-    print(f'TensorBoard logs saved to: {log_dir}')
-
-
-if __name__ == '__main__':
-    main()
+for epoch in range(epochs):
+    model.train()                              #训练模型
+    train_loss_sum = 0                         #将训练集的总损失初始化为0
+    for images,lables in train_loader:
