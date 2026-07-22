@@ -72,4 +72,77 @@ early_stop_counter = 0                         #早停计数器
 for epoch in range(epochs):
     model.train()                              #训练模型
     train_loss_sum = 0                         #将训练集的总损失初始化为0
-    for images,lables in train_loader:
+    for images,lables in train_loader:         #遍历数据集，按照loader的批次，一个batch64张照片，lables是0~9
+        images = images.to(device)
+        lables = lables.to(device)             #输送到GUP上计算
+        optimizer.zero_grad()                  #清空上一轮训练计算的梯度
+        outputs = model(images)
+        loss = criterion(outputs,lables)       #平均损失
+        loss.backward()                        #反向传播
+        optimizer.step()                       #更新参数：优化器Adam参照梯度以及设置的学习率，更新网络的values以及bias
+        train_loss_sum += loss.item()          #累加损失：train_loss_sum=train_loss_sum+loss,且终值被item设定为浮点数
+    train_loss = train_loss_sum / len(train_loader)
+                                               #一个epoch结束了，计算所有batches的平均loss，len就是batches的个数
+
+    #---------------------验证阶段-----------------------
+    model.eval()                               #模型开启evaluation模式，意味着dropout停止工作
+    val_loss_sum = 0.0
+    correct = 0                                #eval阶段识别正确的个数
+    total = 0
+    with torch.no_grad():                      #关闭梯度计算，停止value和bias的更新
+        for images,lables in val_loader:
+            images = images.to(device)
+            lables = lables.to(device)
+            outputs = model(images)
+            loss = criterion(outputs,lables)
+            val_loss_sum += loss.item()
+            _, pred = torch.max(outputs, dim = 1)
+                                               #torch.max是在一维上寻找最大值，将最大值本身索引会 = 前面
+                                               #_把最大值本身给忽略了，把这个索引赋给pred，是类别的0~9
+            total += lables.size(0)
+            correct += (pred == lables).sum().item()
+    val_loss = val_loss_sum / len(val_loader)
+    val_acc = correct / total
+
+    scheduler.step(val_loss)
+
+    #--------------TensorBoard记录-------------------------
+    writer.add_scalar('Loss/Train', train_loss, epoch)
+                                              #训练集平均损失
+    writer.add_scalar('Loss/Val', val_loss, epoch)
+                                              #验证集平均损失
+    writer.add_scalar('Accuracy/Val', val_acc, epoch)
+                                              #验证集准确率
+    writer.add_scalar('LR',optimizer.param_groups[0]['lr'], epoch)
+                                              #当前学习率
+    print(f"Epoch[{epoch+1:02d}/{epochs}]"
+          f"TrainLoss:{train_loss:.4f} | ValLoss:{val_loss:.4f} | ValAcc:{val_acc:.4f} "
+          f"LR:{optimizer.param_groups[0]['lr']:.6f}")
+    #--------------------checkpoints保存---------------------------------------
+    checkpoint = {
+        "epoch": epoch ,
+        "model_state_dict": model.state_dict(),          #保存此时的values和bias
+        "optimizer_state_dict": optimizer.state_dict(),  #保存此时优化器参数
+        "best_acc": best_acc
+    }
+    torch.save(checkpoint, Latest_Weight_Path)
+
+    # 2. 出现更高精度，保存最优权重
+    if val_acc > best_acc:
+        best_acc = val_acc
+        early_stop_counter = 0
+        torch.save(model.state_dict(), Best_Weight_Path)
+        print(f" New Best! Save best model. Best Acc: {best_acc:.4f}")
+    else:
+        early_stop_counter += 1
+        print(f"️ No improvement. EarlyStop counter: {early_stop_counter}/{patience}")
+
+        # ========== Early Stopping 触发 ==========
+        if early_stop_counter >= patience:
+            print(f"\n Early Stopping Triggered! No improvement over {patience} epochs.")
+            break
+
+writer.close()
+print(f"\nTraining Finished. Best Val Accuracy = {best_acc:.4f}")
+print(f"Best Model Path: {Best_Weight_Path}")
+print(f"Latest Checkpoint Path: {Latest_Weight_Path}")
