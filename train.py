@@ -1,7 +1,6 @@
 import argparse
 import os                                      #os能够对项目文件夹进行创建、储存等操作
 from calendar import EPOCH
-
 import torch
 import torch.nn as nn
 import torch.optim as optim                    #调用torch的优化器
@@ -25,14 +24,15 @@ lr_patience = 3                                #耐心值，当3个循环验证�
 
 
 #-----------创建所需文件夹--------------
-os.makedirs('runs', exist_ok = True)
-os.makedirs('results', exist_ok = True)
+os.makedirs('runs', exist_ok = True)#存放TensorBoard训练日志，包含每轮的损失函数、学习率等
+os.makedirs('results', exist_ok = True)#存放最佳模型权重以及CM混淆矩阵
+os.makedirs('checkpoints', exist_ok = True)#存放训练的checkpoints
 
 writer = SummaryWriter(log_dir='./runs')       #调用这个SuammaryWriter工具来记录训练日志
-Best_Weight_Path = os.path.join('runs','best_model.pth')
-                                               #把最佳权重参数记录在runs里面，文件名为“best_model.pth”
-Latest_Weight_Path = os.path.join('runs','latest_checkpoint.pth')
-                                               #把最近一次训练权重记录在runs里面，文件名为"latest_checkpoint.pth"
+Best_Weight_Path = os.path.join('results','best_model.pth')
+                                               #把最佳权重参数记录在results里面，文件名为“best_model.pth”
+Latest_Weight_Path = os.path.join('checkpoints','latest_checkpoint.pth')
+                                               #把最近一次训练权重记录在checkpoints里面，文件名为"latest_checkpoint.pth"
                                                #防止训练丢失，否则需要从头训练
 #--------------数据预处理----------------------------------------------------------------------
 #=====================transform数据增强========================================================
