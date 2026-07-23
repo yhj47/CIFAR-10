@@ -127,12 +127,14 @@ for epoch in range(epochs):
     }
     torch.save(checkpoint, Latest_Weight_Path)
 
-    # 2. 出现更高精度，保存最优权重
+    #------------------出现更高精度，保存最优权重------------------------------
     if val_acc > best_acc:
         best_acc = val_acc
         early_stop_counter = 0
         torch.save(model.state_dict(), Best_Weight_Path)
         print(f" New Best! Save best model. Best Acc: {best_acc:.4f}")
+                                                          # best_acc:.4f
+                                                          #.4f表示这里数据类型为浮点数4位小数
     else:
         early_stop_counter += 1
         print(f"️ No improvement. EarlyStop counter: {early_stop_counter}/{patience}")
