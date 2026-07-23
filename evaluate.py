@@ -11,10 +11,10 @@ from models import SimpleCNN
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'当前运行设备：{device}')
 
-RESULT_DIR = 'result'                                #dir是directory缩写
+RESULT_DIR = 'results'                                #dir是directory缩写
 WEIGHT_PATH =os.path.join(RESULT_DIR,'best_model.pth')
                                                      #把最佳权重放在WEIGHT_PATH
-CM_SAVE_DIR = os.path.join(RESULT_DIR,'confusion_matrix.png')
+CM_SAVE_PATH = os.path.join(RESULT_DIR,'confusion_matrix.png')
 
 os.makedirs(RESULT_DIR,exist_ok=True)
 
@@ -45,12 +45,14 @@ if not os.path.exists(WEIGHT_PATH):
     raise FileNotFoundError(f'未找到权重{WEIGHT_PATH}\n请先进行训练后再进行评估')
 
 model = SimpleCNN(num_classes = 10).to(device)
-model.load_state_dict(torch.load(WEIGHT_PATH),map_location=device,weights_only = False)
+model.load_state_dict(torch.load(WEIGHT_PATH,map_location=device,weights_only = False))
 model.eval()                                 #开启评估模式
 print(f'成功加载权重：{WEIGHT_PATH}')
 
 all_labels = []                              #把每个batch的真值labels按顺序放在这里
 all_preds  = []                              #把predict的结果放在这里面
+total_num = 0
+correct_num = 0                              #任何自定义变量必须先设置初值，才能在后面进行调用
 
 with torch.no_grad():                        #禁用梯度计算，不需要反向传播
     for batch_idx, (images, labels) in enumerate(test_dataloader):
