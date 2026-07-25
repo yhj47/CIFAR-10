@@ -7,7 +7,7 @@ import seaborn as sns                                #seaborn是用来美化pypl
 from torch.utils.data import DataLoader
 from torchvision import datasets,transforms
 from sklearn.metrics import confusion_matrix         #从Scikit_learn工具包里，调用confusion_matrix函数
-from models import SimpleCNN
+from models import SimpleCNN,ResNet18,ResNet34,ResNet50,ResNet101
 
 parser = argparse.ArgumentParser(description='CIFAR-10模型评估脚本')
 parser.add_argument('--exp_name', type=str, default='SimpleCNN_run1',
@@ -78,7 +78,7 @@ if not os.path.exists(WEIGHT_PATH):
 
 
 model_dict = {
-    'SimpleCNN': SimpleCNN}
+    'SimpleCNN': SimpleCNN,'ResNet18': ResNet18,'ResNet34':ResNet34,'ResNet50':ResNet50,'ResNet101':ResNet101}
 # 校验模型名，传错直接明确报错，避免静默出错
 if args.model not in model_dict:
     raise ValueError(f"不支持的模型：{args.model}，可选模型：{list(model_dict.keys())}")

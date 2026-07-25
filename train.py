@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader        #DataLoader负责把数据打包�
 from torchvision import datasets,transforms    #dataset负责去找项目里有没有dataset，如果没有的话，将联网下载
                                                #transforms是负责给照片进行旋转、裁剪等操作的工具包
 from torch.utils.tensorboard import SummaryWriter
-from models import SimpleCNN
+from models import SimpleCNN,ResNet18,ResNet34,ResNet50,ResNet101
 
 
 
@@ -86,7 +86,7 @@ val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_worke
                                                #num_worker指的是是否需要在主线开几个支线来提前加载照片，用于照片尺寸过大
 #--------------------------模型、损失、学习率、优化的调度--------------------------------------------------------------
 
-model_dic = {'SimpleCNN':SimpleCNN}            #这是models的字典，把新家进来的网络写在里面
+model_dic = {'SimpleCNN':SimpleCNN,'ResNet18':ResNet18,'ResNet34':ResNet34,'ResNet50':ResNet50,'ResNet101':ResNet101}            #这是models的字典，把新家进来的网络写在里面
 
 model_class = model_dic[args.model]
 model = model_class(num_classes=10).to(device)
