@@ -41,5 +41,5 @@
 # 混淆矩阵
 ### 测试集混淆矩阵
   <div align ="center">
-  <img src ="results/confusion_matrix.png" width="700">
+  <img src ="results/SimpleCNN_run1_confusion_matrix.png" width="700">
   </div>

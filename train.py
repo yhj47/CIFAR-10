@@ -11,13 +11,39 @@ from torch.utils.tensorboard import SummaryWriter
 from models import SimpleCNN
 
 
+
+#-------------实验运行参数设置----------------------------------------
+parser = argparse.ArgumentParser(description='CIFAR10_Training')
+parser.add_argument('--exp_name', type=str, default='SimpleCNN_run1', help='实验标识名:模型名_run1')
+parser.add_argument('--model', type=str, default='SimpleCNN', help='使用的模型名称')
+args = parser.parse_args()
+#------------------------------------以上的都没看懂在干啥-----------------------------------
+
 #超参数配置
 device = torch.device('cuda'if torch.cuda.is_available() else 'cpu')
 print(f'训练使用设备：{device}')                  # f-string这里固定语法，后有{}要进行计算替代时候必须用f
 
+args = parser.parse_args()
+
+# ========== 新增：自动递增实验序号 ==========
+# 如果用户没手动传 exp_name，就自动生成 模型名_runN 的格式，自动找下一个序号
+if args.exp_name == parser.get_default('exp_name'):
+    base_name = args.model  # 以模型名为基础名
+    run_id = 1
+    # 循环检测 checkpoints 文件夹里是否已有对应序号的文件
+    while True:
+        candidate_ckpt = os.path.join('checkpoints', f'{base_name}_run{run_id}_latest_checkpoint.pth')
+        if not os.path.exists(candidate_ckpt):
+            break
+        run_id += 1
+    exp_name = f'{base_name}_run{run_id}'
+    print(f'未指定实验名，自动生成：{exp_name}')
+else:
+    exp_name = args.exp_name
+
 batch_size = 64
-learning_rate = 1e-3                           #学习率提前设定？
-epochs = 15
+learning_rate = 1e-3                           #初始学习率提前设定，训练后期衰减学习率提高精度
+epochs = 10                                    #可修改参数
 patience = 3                                   #防止过拟合，可以实现early stop
 lr_factor = 0.5                                #衰减因子，当触发降学习率时，将LR*衰减因子
 lr_patience = 3                                #耐心值，当3个循环验证集的精度没有提升时，触发学习率下降
@@ -28,10 +54,12 @@ os.makedirs('runs', exist_ok = True)#存放TensorBoard训练日志，包含每�
 os.makedirs('results', exist_ok = True)#存放最佳模型权重以及CM混淆矩阵
 os.makedirs('checkpoints', exist_ok = True)#存放训练的checkpoints
 
-writer = SummaryWriter(log_dir='./runs')       #调用这个SuammaryWriter工具来记录训练日志
-Best_Weight_Path = os.path.join('results','best_model.pth')
+writer = SummaryWriter(log_dir=os.path.join('runs',exp_name))       #调用这个SummaryWriter工具来记录训练日志
+
+
+Best_Weight_Path = os.path.join('results',f'{exp_name}_best_model.pth')
                                                #把最佳权重参数记录在results里面，文件名为“best_model.pth”
-Latest_Weight_Path = os.path.join('checkpoints','latest_checkpoint.pth')
+Latest_Weight_Path = os.path.join('checkpoints',f'{exp_name}_latest_checkpoint.pth')
                                                #把最近一次训练权重记录在checkpoints里面，文件名为"latest_checkpoint.pth"
                                                #防止训练丢失，否则需要从头训练
 #--------------数据预处理----------------------------------------------------------------------
@@ -57,7 +85,13 @@ val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_worke
                                                #shuffle指是否打乱顺序
                                                #num_worker指的是是否需要在主线开几个支线来提前加载照片，用于照片尺寸过大
 #--------------------------模型、损失、学习率、优化的调度--------------------------------------------------------------
-model = SimpleCNN(num_classes=10).to(device)
+
+model_dic = {'SimpleCNN':SimpleCNN}            #这是models的字典，把新家进来的网络写在里面
+
+model_class = model_dic[args.model]
+model = model_class(num_classes=10).to(device)
+
+
 criterion = nn.CrossEntropyLoss()              #nn.CrossEntropyLoss是Pytorch.nn内置的一个损失函数器，专门用于多分类任务
 optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode = 'min', factor=lr_factor, patience=lr_patience)
