@@ -10,9 +10,9 @@ from sklearn.metrics import confusion_matrix         #从Scikit_learn工具包�
 from models import SimpleCNN,ResNet18,ResNet34,ResNet50,ResNet101
 
 parser = argparse.ArgumentParser(description='CIFAR-10模型评估脚本')
-parser.add_argument('--exp_name', type=str, default='ResNet18_run1',
+parser.add_argument('--exp_name', type=str, default='ResNet34_run1',
                     help='实验唯一标识，必须和训练时的exp_name完全一致')
-parser.add_argument('--model', type=str, default='ResNet18',
+parser.add_argument('--model', type=str, default='ResNet34',
                     help='评估的模型名称，必须和训练时的model参数一致')
 args = parser.parse_args()
 

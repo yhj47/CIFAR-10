@@ -55,5 +55,5 @@ ResNet34使用 `BasicBlock` 基础残差块，无Bottleneck瓶颈结构
 - 下采样、shortcut维度校正、池化与分类头逻辑和ResNet18保持统一；
 ### ResNet34 混淆矩阵
    <div align ="center">
-   <img src ="results/SimpleCNN_run1_confusion_matrix.png" width="700">
+   <img src ="results/ResNet34_run1_confusion_matrix.png" width="700">
    </div>
