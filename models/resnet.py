@@ -19,8 +19,8 @@ class BasicBlock(nn.Module):       #BasicBlock的定义
             self.shortcut = nn.Sequential()
             if stride != 1 or in_channels != out_channels*self.expansion:
                   self.shortcut = nn.Sequential(
-                        self.Conv2d(in_channels,out_channels*self.expansion,kernel_size = 1,stride = stride, bias = False),
-                        self.BatchNorm2d(out_channels*self.expansion)
+                        nn.Conv2d(in_channels,out_channels*self.expansion,kernel_size = 1,stride = stride, bias = False),
+                        nn.BatchNorm2d(out_channels*self.expansion)
                   )
 
       def forward(self, x):
@@ -49,8 +49,8 @@ class Bottleneck(nn.Module):
             self.shortcut = nn.Sequential()
             if stride != 1 or in_channels != out_channels*self.expansion:
                   self.shortcut = nn.Sequential(
-                        self.Conv2d(in_channels,out_channels*self.expansion,kernel_size = 1,stride = stride, bias = False),
-                        self.BatchNorm2d(out_channels*self.expansion)
+                        nn.Conv2d(in_channels,out_channels*self.expansion,kernel_size = 1,stride = stride, bias = False),
+                        nn.BatchNorm2d(out_channels*self.expansion)
                   )
 
       def forward(self, x):

@@ -14,8 +14,8 @@ from models import SimpleCNN,ResNet18,ResNet34,ResNet50,ResNet101
 
 #-------------实验运行参数设置----------------------------------------
 parser = argparse.ArgumentParser(description='CIFAR10_Training')
-parser.add_argument('--exp_name', type=str, default='SimpleCNN_run1', help='实验标识名:模型名_run1')
-parser.add_argument('--model', type=str, default='SimpleCNN', help='使用的模型名称')
+parser.add_argument('--exp_name', type=str, default='ResNet34_run1', help='实验标识名:模型名_run1')
+parser.add_argument('--model', type=str, default='ResNet34', help='使用的模型名称')
 args = parser.parse_args()
 #------------------------------------以上的都没看懂在干啥-----------------------------------
 

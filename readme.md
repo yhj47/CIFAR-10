@@ -1,25 +1,11 @@
 # CIFAR-10 Image Classification
-## 项目简介
-本项目基于 **PyTorch** 搭建轻量化卷积神经网络（SimpleCNN）完成 CIFAR-10 10分类图像识别:
-- 自定义3层卷积+BN+ReLU+最大池化CNN主干网络
-- 训练集数据增强（随机裁剪、水平翻转）
-- CUDA GPU 自动加速训练
-- TensorBoard 全程指标可视化
-- 自适应学习率衰减 ReduceLROnPlateau
-- Early Stopping 早停机制防止过拟合
-- Checkpoint 断点保存（最优模型+可续训断点）
-- 测试集准确率计算 + 混淆矩阵可视化评估
-
-训练后模型在CIFAR-10测试集准确率可达 **82% ~ 85%**。
-
----
-
 ## 一、项目整体目录结构
 ### CIFAR-10
     |----dataset
     |----models
-    |    |---_init.py
+    |    |---__init__.py
     |    |---simplecnn.py
+    |    |---resnet.py
     |----runs
     |----results
     |----checkpoints
@@ -27,7 +13,7 @@
     |----readme.md
     |----train.py
     |----evaluate.py
-## 二、SimpleCNN的网络架构
+## 二、SimpleCNN
 ### 卷积块 1：
     Conv2d (3,16)+BN+ReLU+MaxPool
 ### 卷积块 2：
@@ -38,8 +24,36 @@
 ### 全连接层 + Dropout (0.5) 防过拟合
 ### 最终全连接输出 10 个类别得分
 
-# 混淆矩阵
+# SimpleCNN 混淆矩阵
 ### 测试集混淆矩阵
   <div align ="center">
   <img src ="results/SimpleCNN_run1_confusion_matrix.png" width="700">
   </div>
+
+##   三、ResNet18
+### 3.1 网络架构
+ResNet18 基础模块为 `BasicBlock`，两层 3×3 卷积
+
+1. 网络层级结构
+- 输入头：3×3卷积 + BN，将3通道原图映射至64通道特征；
+- 4组残差层：layer1(64通道)、layer2(128通道)、layer3(256通道)、layer4(512通道)，每组堆叠2个BasicBlock；
+- 下采样：layer2~layer4 通过 stride=2 完成尺寸减半；
+- 维度匹配：通道/尺寸不匹配时，shortcut 使用 1×1卷积+BN 校正维度；
+- 输出头：自适应全局平均池化 + 线性层，输出10分类结果。
+### 混淆矩阵
+  <div align ="center">
+  <img src ="results/ResNet18_run1_confusion_matrix.png" width="700">
+  </div>
+
+## 四、ResNet34
+### 网络架构ResNet34
+ResNet34使用 `BasicBlock` 基础残差块，无Bottleneck瓶颈结构
+1. 网络层级结构
+- 输入头与ResNet18完全一致：3×3卷积+BN，输出64通道特征；
+- 4组残差层堆叠数量调整为 `[3, 4, 6, 3]`；
+- layer1：3个64通道BasicBlock；layer2：4个128通道BasicBlock；layer3：6个256通道BasicBlock；layer4：3个512通道BasicBlock；
+- 下采样、shortcut维度校正、池化与分类头逻辑和ResNet18保持统一；
+### ResNet34 混淆矩阵
+   <div align ="center">
+   <img src ="results/SimpleCNN_run1_confusion_matrix.png" width="700">
+   </div>
