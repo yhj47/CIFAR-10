@@ -1,7 +1,6 @@
 runs/     #TensorBoard训练日志不上传
 
-results/
-checkpoints/
+checkpoints/   #不上传早停
 
 dataset/  #数据集不上传
 # ==================== Python 缓存 ====================
